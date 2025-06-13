@@ -183,3 +183,23 @@ th {
         grid-template-columns: 1fr;
     }
 }
+
+.switch-bit {
+    width: 25px;
+    height: 25px;
+    background: var(--off-color);
+    border: 1px solid #999;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8em;
+    margin: 0 2px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.switch-bit.on {
+    background: var(--on-color);
+    color: white;
+}
