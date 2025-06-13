@@ -7,9 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const codeInput = document.getElementById('codeInput');
     const romTableBody = document.getElementById('romTableBody');
     const ramTableBody = document.getElementById('ramTableBody');
-    const zfVal = document.getElementById('ZF');
-    const switchesContainer = document.getElementById('SWBits');
-    const swHexVal = document.getElementById('SWVal'); // <-- Referência para o novo campo
+    const zfValSpan = document.getElementById('ZF');
+    const swHexVal = document.getElementById('SWVal');
 
     // === Simulator State ===
     let registers = {};
@@ -33,21 +32,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!container) return;
             container.innerHTML = '';
             const elements = [];
-
             for (let i = 7; i >= 0; i--) {
                 const bitEl = document.createElement('div');
                 const isSwitch = (containerId === 'SWBits');
-                
                 bitEl.className = isSwitch ? 'switch-bit' : 'bit-box';
                 bitEl.textContent = i;
-                
                 if (isSwitch) {
                     bitEl.addEventListener('click', () => {
                         bitEl.classList.toggle('on');
-                        updateSwitchesHexValue(); // <-- ATUALIZA O VALOR HEX A CADA CLIQUE
+                        updateSwitchesHexValue();
                     });
                 }
-                
                 container.appendChild(bitEl);
                 elements.push(bitEl);
             }
@@ -69,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateBitDisplay(containerId, value) {
         const container = document.getElementById(containerId);
-        if (!container) return;
+        if (!container || !container.children) return;
         Array.from(container.children).forEach((bitBox, index) => {
             const bitIndex = 7 - index;
             if ((value >> bitIndex) & 1) bitBox.classList.add('on');
@@ -86,18 +81,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function updateAllDisplays() {
-        REG_NAMES.forEach(reg => updateRegisterDisplay(reg, registers[reg]));
-        zfVal.textContent = registers.ZF;
+        REG_NAMES.forEach(reg => {
+            if (registers[reg] !== undefined) updateRegisterDisplay(reg, registers[reg]);
+        });
+        if(zfValSpan) zfValSpan.textContent = registers.ZF.toString(16).toUpperCase().padStart(2, '0');
         renderROM();
         renderRAM();
     }
-    
-    // ... (renderROM e renderRAM aqui) ...
+
     function renderROM() {
         romTableBody.innerHTML = '';
         rom.forEach((instr, index) => {
             const row = romTableBody.insertRow();
-            if (index === registers.PC) row.classList.add('current-instruction');
+            if (index === registers.PC) {
+                row.classList.add('current-instruction');
+            }
             row.insertCell(0).textContent = index.toString(16).toUpperCase().padStart(2, '0');
             row.insertCell(1).textContent = instr.text;
             row.insertCell(2).textContent = instr.hex.toString(16).toUpperCase().padStart(4, '0');
@@ -119,16 +117,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ram.fill(0);
         rom = [];
         running = false;
-        clearInterval(runInterval);
+        if (runInterval) clearInterval(runInterval);
         runBtn.textContent = 'Run';
         createBitElements();
         updateAllDisplays();
-        updateSwitchesHexValue(); // <-- Garante que o valor comece em 00
-        romTableBody.innerHTML = '';
+        updateSwitchesHexValue();
     }
 
     // === Instruction Parser ===
     function parseInstruction(line) {
+        line = line.replace(/\[|\]/g, ' ');
         line = line.trim().toUpperCase().split(';')[0];
         if (!line) return null;
         const parts = line.split(/[\s,]+/);
@@ -143,8 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'SET': opcodeHex = OPS.SET << 8; const valueToSet = (op2 !== undefined) ? op2 : op1; dataHex = parseInt(valueToSet, 16); break;
                 case 'JMP': case 'JZ': case 'CALL': opcodeHex = OPS[mnemonic] << 8; dataHex = parseInt(op1, 16); break;
                 case 'IN': case 'OUT': case 'RET': opcodeHex = OPS[mnemonic] << 8; break;
-                case 'LOAD': opcodeHex = OPS.LOAD << 8; dataHex = (REGS[op1] << 4); break;
-                case 'STORE': opcodeHex = OPS.STORE << 8; dataHex = REGS[op2]; break;
+                case 'LOAD': opcodeHex = OPS.LOAD << 8; dataHex = (REGS[op1] << 4) | REGS[op2]; break; // Ex: LOAD R0, AC
+                case 'STORE': opcodeHex = OPS.STORE << 8; dataHex = (REGS[op1] << 4) | REGS[op2]; break; // Ex: STORE AC, R0
                 case 'INC': case 'DEC': case 'CPL': case 'RR': case 'RL': opcodeHex = OPS[mnemonic] << 8; dataHex = (REGS[op1] << 4) | REGS[op1]; break;
                 case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR': opcodeHex = OPS[mnemonic] << 8; dataHex = (REGS[op1] << 4) | REGS[op2]; break;
                 default: throw new Error(`Mnemônico desconhecido: ${mnemonic}`);
@@ -159,20 +157,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // === Core Execution Logic ===
     function step() {
-        if (registers.PC >= rom.length) {
-            if (running) runBtn.click();
+        if (rom.length === 0 || registers.PC >= rom.length) {
+            if (running) {
+                runBtn.click();
+            }
             return;
         }
 
         const instruction = rom[registers.PC];
+        if (!instruction || typeof instruction.hex !== 'number') {
+            console.error(`Instrução inválida no endereço ${registers.PC}`);
+            if (running) runBtn.click();
+            return;
+        }
+
         const opcode = (instruction.hex >> 8) & 0x1F;
         const data = instruction.hex & 0xFF;
         let pcUpdated = false;
         let tempResult = 0;
+        
         const destReg = (data >> 4) & 0xF;
         const srcReg = data & 0xF;
         const destKey = Object.keys(REGS).find(k => REGS[k] === destReg);
         const srcKey = Object.keys(REGS).find(k => REGS[k] === srcReg);
+        
+        const addrRegForMem = Object.keys(REGS).find(k => REGS[k] === srcReg);
 
         switch (opcode) {
             case OPS.IN:
@@ -184,15 +193,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 registers.AC = valorLido;
                 break;
-            
-            // ... todos os outros casos de instruções ...
             case OPS.MOV: if (destKey && srcKey) registers[destKey] = registers[srcKey]; break;
             case OPS.SET: registers.AC = data; break;
             case OPS.JMP: registers.PC = data; pcUpdated = true; break;
             case OPS.JZ: if (registers.ZF === 1) { registers.PC = data; pcUpdated = true; } break;
             case OPS.OUT: registers.RS = registers.AC; break;
-            case OPS.LOAD: if (destKey) registers[destKey] = ram[registers.AC]; break;
-            case OPS.STORE: if (srcKey) ram[registers.AC] = registers[srcKey]; break;
+            case OPS.LOAD: if (destKey && addrRegForMem) registers[destKey] = ram[registers[addrRegForMem]]; break;
+            case OPS.STORE: if (destKey && addrRegForMem) { ram[registers[destKey]] = registers[addrRegForMem]; } break;
             case OPS.CALL: registers.SP = registers.PC + 1; registers.PC = data; pcUpdated = true; break;
             case OPS.RET: registers.PC = registers.SP; pcUpdated = true; break;
             case OPS.ADD: if (destKey && srcKey) tempResult = registers[destKey] + registers[srcKey]; break;
@@ -213,7 +220,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 registers.ZF = (registers[destKey] === 0) ? 1 : 0;
             }
         }
-        if (!pcUpdated) registers.PC++;
+        if (!pcUpdated) {
+            registers.PC++;
+        }
         updateAllDisplays();
     }
 

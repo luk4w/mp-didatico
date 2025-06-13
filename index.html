@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Microprocessador Didático</title>
+    <title>Simulador Microprocessador Didático</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Simulador de Microprocessador Didático</h1>
+            <h1>Simulador Microprocessador Didático</h1>
         </header>
 
         <div class="simulator-layout">
@@ -25,7 +25,7 @@
 
                 <div class="card">
                     <h2>Code Editor</h2>
-                    <textarea id="codeInput" rows="10" placeholder="Digite seu código aqui...&#10;Ex:&#10;SET AC, 0A ; Carrega 0A no AC&#10;MOV R0, AC&#10;INC R0&#10;XOR R0, AC&#10;OUT AC"></textarea>
+                    <textarea id="codeInput" rows="10" placeholder="SET AC, 0A -- Carrega 0A no AC&#10;MOV R0, AC&#10;INC R0&#10;XOR R0, AC&#10;OUT AC"></textarea>
                     <button id="addToRomBtn">Adicionar à ROM</button>
                 </div>
             </div>
@@ -34,6 +34,8 @@
                 <div class="card">
                     <h2>Registradores</h2>
                     <div class="register-grid">
+                        <div class="reg-label-value"><span class="reg-label">ZF:</span><span id="ZF" class="reg-value">00</span></div>
+                        <div class="bit-container" id="ZFBits"></div>
                         
                         <div class="reg-label-value"><span class="reg-label">SW:</span><span id="SWVal" class="reg-value">00</span></div>
                         <div class="bit-container" id="SWBits"></div>
