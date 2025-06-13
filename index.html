@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Microprocessador Didático</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Simulador de Microprocessador Didático</h1>
+        </header>
+
+        <div class="simulator-layout">
+            <div class="control-code-column">
+                <div class="card">
+                    <h2>Controles</h2>
+                    <div class="controls">
+                        <button id="stepBtn" title="Executa a próxima instrução">Step</button>
+                        <button id="runBtn" title="Executa o programa continuamente">Run</button>
+                        <button id="resetBtn" title="Reseta o simulador para o estado inicial">Reset</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Code Editor</h2>
+                    <textarea id="codeInput" rows="10" placeholder="Digite seu código aqui...&#10;Ex:&#10;SET AC, 0A ; Carrega 0A no AC&#10;MOV R0, AC&#10;INC R0&#10;XOR R0, AC&#10;OUT AC"></textarea>
+                    <button id="addToRomBtn">Adicionar à ROM</button>
+                </div>
+            </div>
+
+            <div class="registers-column">
+                <div class="card">
+                    <h2>Registradores</h2>
+                    <div class="register-grid">
+                        <div class="reg-label-value"><span class="reg-label">AC:</span><span id="ACVal" class="reg-value">00</span></div>
+                        <div class="bit-container" id="ACBits"></div>
+                        <div class="reg-label-value"><span class="reg-label">RS:</span><span id="RSVal" class="reg-value">00</span></div>
+                        <div class="bit-container" id="RSBits"></div>
+                        <div class="reg-label-value"><span class="reg-label">R0:</span><span id="R0Val" class="reg-value">00</span></div>
+                        <div class="bit-container" id="R0Bits"></div>
+                        <div class="reg-label-value"><span class="reg-label">R1:</span><span id="R1Val" class="reg-value">00</span></div>
+                        <div class="bit-container" id="R1Bits"></div>
+                        <div class="reg-label-value"><span class="reg-label">R2:</span><span id="R2Val" class="reg-value">00</span></div>
+                        <div class="bit-container" id="R2Bits"></div>
+                        <div class="reg-label-value"><span class="reg-label">R3:</span><span id="R3Val" class="reg-value">00</span></div>
+                        <div class="bit-container" id="R3Bits"></div>
+                        <div class="reg-label-value"><span class="reg-label">PC:</span><span id="PCVal" class="reg-value">00</span></div>
+                        <div class="bit-container" id="PCBits"></div>
+                        <div class="reg-label-value"><span class="reg-label">SP:</span><span id="SPVal" class="reg-value">00</span></div>
+                        <div class="bit-container" id="SPBits"></div>
+                        <div class="reg-label-value"><span class="reg-label">ZF:</span><span id="ZF" class="reg-value">0</span></div>
+                        <div></div> </div>
+                </div>
+            </div>
+
+            <div class="memory-column">
+                <div class="card">
+                    <h2>ROM (Programa)</h2>
+                    <div class="memory-table-container">
+                        <table id="romTable">
+                            <thead>
+                                <tr>
+                                    <th>End</th>
+                                    <th>Instrução</th>
+                                    <th>Hex</th>
+                                </tr>
+                            </thead>
+                            <tbody id="romTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>RAM</h2>
+                    <div class="memory-table-container">
+                        <table id="ramTable">
+                            <thead>
+                                <tr>
+                                    <th>End</th>
+                                    <th>Valor (Hex)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ramTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="simulator.js"></script>
+</body>
+</html>
