@@ -23,10 +23,15 @@
                     </div>
                 </div>
 
+                <hr class="separator"><hr class="separator">
+
                 <div class="card">
-                    <h2>Code Editor</h2>
-                    <textarea id="codeInput" rows="10" placeholder="SET AC, 0A -- Carrega 0A no AC&#10;MOV R0, AC&#10;INC R0&#10;XOR R0, AC&#10;OUT AC"></textarea>
-                    <button id="addToRomBtn">Adicionar à ROM</button>
+                    <h2>Editor de Código</h2>
+                    <textarea id="codeInput" rows="12" placeholder="SET AC, 0A &#10;MOV R0, AC&#10;INC R0&#10;XOR R0, AC&#10;OUT AC"></textarea>
+                    <div class="editor-buttons">
+                        <button id="assembleBtn">Montar Assembly</button>
+                        <button id="loadHexBtn">Carregar Hex</button>
+                    </div>
                 </div>
             </div>
 
@@ -68,28 +73,19 @@
                     <h2>ROM (Programa)</h2>
                     <div class="memory-table-container">
                         <table id="romTable">
-                            <thead>
-                                <tr>
-                                    <th>End</th>
-                                    <th>Instrução</th>
-                                    <th>Hex</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>End</th><th>Instrução</th><th>Hex</th></tr></thead>
                             <tbody id="romTableBody"></tbody>
                         </table>
                     </div>
                 </div>
 
+                <hr class="separator"><hr class="separator">
+
                 <div class="card">
                     <h2>RAM</h2>
                     <div class="memory-table-container">
                         <table id="ramTable">
-                            <thead>
-                                <tr>
-                                    <th>End</th>
-                                    <th>Valor (Hex)</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>End</th><th>Valor (Hex)</th></tr></thead>
                             <tbody id="ramTableBody"></tbody>
                         </table>
                     </div>
@@ -97,7 +93,6 @@
             </div>
         </div>
     </div>
-
     <script src="simulator.js"></script>
 </body>
 </html>

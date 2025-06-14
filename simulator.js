@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const stepBtn = document.getElementById('stepBtn');
     const resetBtn = document.getElementById('resetBtn');
     const runBtn = document.getElementById('runBtn');
-    const addToRomBtn = document.getElementById('addToRomBtn');
+    const assembleBtn = document.getElementById('assembleBtn');
+    const loadHexBtn = document.getElementById('loadHexBtn');
     const codeInput = document.getElementById('codeInput');
     const romTableBody = document.getElementById('romTableBody');
     const ramTableBody = document.getElementById('ramTableBody');
@@ -79,12 +80,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (valElement) valElement.textContent = hexValue;
         updateBitDisplay(`${reg}Bits`, registers[reg]);
     }
-
+    
     function updateAllDisplays() {
         REG_NAMES.forEach(reg => {
             if (registers[reg] !== undefined) updateRegisterDisplay(reg, registers[reg]);
         });
-
+        if(zfValSpan) zfValSpan.textContent = registers.ZF.toString(16).toUpperCase().padStart(2, '0');
         renderROM();
         renderRAM();
     }
@@ -99,7 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
             row.insertCell(2).textContent = instr.hex.toString(16).toUpperCase().padStart(4, '0');
         });
     }
-
     function renderRAM() {
         ramTableBody.innerHTML = '';
         for (let i = 0; i < ram.length; i++) {
@@ -114,33 +114,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================================================================
     function parseInstruction(line, labelMap) {
         const originalLine = line.trim();
-        line = originalLine.replace(/\[|\]/g, '');
+        line = originalLine.replace(/\[|\]/g, ' ');
         line = line.toUpperCase().split(';')[0].trim();
         if (!line) return null;
-
         const parts = line.split(/[\s,]+/);
         const mnemonic = parts[0];
         const op1 = parts[1];
         const op2 = parts[2];
         let opcodeHex = 0;
         let dataHex = 0;
-
         try {
             if (!OPS.hasOwnProperty(mnemonic)) throw new Error(`Mnemônico desconhecido: ${mnemonic}`);
             opcodeHex = OPS[mnemonic] << 8;
-
             switch (mnemonic) {
                 case 'JMP': case 'JZ': case 'CALL':
-                    if (labelMap[op1] !== undefined) { dataHex = labelMap[op1]; }
+                    if (labelMap[op1] !== undefined) { dataHex = labelMap[op1]; } 
                     else { dataHex = parseInt(op1, 16); }
                     break;
-                
-                case 'LOAD': case 'STORE': case 'MOV':
-                case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR':
+                case 'LOAD': case 'STORE': case 'MOV': case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR':
                     if (!REGS.hasOwnProperty(op1) || !REGS.hasOwnProperty(op2)) throw new Error(`Registrador inválido: ${op1} ou ${op2}`);
                     dataHex = (REGS[op1] << 4) | REGS[op2];
                     break;
-
                 case 'SET':
                     const valueToSet = (op2 !== undefined) ? op2 : op1;
                     dataHex = parseInt(valueToSet, 16);
@@ -153,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     dataHex = 0;
                     break;
             }
-            if (isNaN(dataHex)) throw new Error(`Operando inválido: '${op1}' ou '${op2}'`);
+            if (isNaN(dataHex)) throw new Error(`Operando ou Label inválido: '${op1}' ou '${op2}'`);
             return { text: originalLine, hex: opcodeHex | dataHex };
         } catch (e) {
             alert(`Erro na linha "${originalLine}": ${e.message}`);
@@ -191,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (rom.length === 0 || registers.PC >= rom.length) { if (running) runBtn.click(); return; }
         const instruction = rom[registers.PC];
         if (!instruction) { if (running) runBtn.click(); return; }
-
         const currentPC = registers.PC;
         let pcUpdated = false;
         const opcode = (instruction.hex >> 8) & 0x1F;
@@ -201,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const srcRegIdx = data & 0xF;
         const destKey = Object.keys(REGS).find(k => REGS[k] === destRegIdx);
         const srcKey = Object.keys(REGS).find(k => REGS[k] === srcRegIdx);
-
         switch (opcode) {
             case OPS.IN: let v = 0; switchBitElements.forEach((b, i) => { if (b.classList.contains('on')) v |= (1 << (7 - i)); }); registers.AC = v; break;
             case OPS.OUT: registers.RS = registers.AC; break;
@@ -211,16 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
             case OPS.JZ: if (registers.ZF === 1) { registers.PC = data; pcUpdated = true; } break;
             case OPS.CALL: registers.SP = currentPC + 1; registers.PC = data; pcUpdated = true; break;
             case OPS.RET: registers.PC = registers.SP; pcUpdated = true; break;
-            case OPS.LOAD:
-                if (destKey && srcKey) registers[destKey] = ram[registers[srcKey]];
-                break;
-            case OPS.STORE:
-                if (destKey && srcKey) {
-                    ram[registers[destKey]] = registers[srcKey];
-                    renderRAM();
-                }
-                break;
-
+            case OPS.LOAD: if (destKey && srcKey) registers[destKey] = ram[registers[srcKey]]; break;
+            case OPS.STORE: if (destKey && srcKey) { ram[registers[destKey]] = registers[srcKey]; renderRAM(); } break;
             case OPS.ADD: if (destKey && srcKey) tempResult = registers[destKey] + registers[srcKey]; break;
             case OPS.SUB: if (destKey && srcKey) tempResult = registers[destKey] - registers[srcKey]; break;
             case OPS.INC: if (destKey) tempResult = registers[destKey] + 1; break;
@@ -232,7 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
             case OPS.RR: if (destKey) tempResult = (registers[destKey] >> 1); break;
             case OPS.RL: if (destKey) tempResult = (registers[destKey] << 1); break;
         }
-
         if (opcode <= OPS.RL) {
             if (destKey) {
                 registers[destKey] = tempResult & 0xFF;
@@ -244,7 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateAllDisplays();
     }
-
+    
+    // === Initialization ===
     function initialize() {
         registers = { AC: 0, RS: 0, R0: 0, R1: 0, R2: 0, R3: 0, PC: 0, ZF: 0, SP: 0 };
         for (let i = 0; i < ram.length; i++) ram[i] = i + 0xA0;
@@ -263,20 +247,83 @@ document.addEventListener('DOMContentLoaded', () => {
     runBtn.addEventListener('click', () => {
         running = !running;
         runBtn.textContent = running ? 'Pause' : 'Run';
-        if (running) { runInterval = setInterval(step, 200); }
+        if (running) { runInterval = setInterval(step, 200); } 
         else { clearInterval(runInterval); }
     });
     
-    addToRomBtn.addEventListener('click', () => {
+    assembleBtn.addEventListener('click', () => {
         try {
             rom = assemble(codeInput.value);
             codeInput.value = '';
             registers.PC = 0;
             updateAllDisplays();
         } catch (error) {
-            console.error("Falha na montagem:", error.message);
+            console.error("Falha na montagem do código:", error.message);
         }
     });
 
+    function disassemble(hex) {
+        const opcode = (hex >> 8) & 0x1F;
+        const data = hex & 0xFF;
+
+        const mnemonic = Object.keys(OPS).find(k => OPS[k] === opcode);
+        if (!mnemonic) return `??? (0x${hex.toString(16)})`;
+
+        const destRegIdx = (data >> 4) & 0xF;
+        const srcRegIdx = data & 0xF;
+        const destKey = Object.keys(REGS).find(k => REGS[k] === destRegIdx);
+        const srcKey = Object.keys(REGS).find(k => REGS[k] === srcRegIdx);
+
+        switch (mnemonic) {
+            case 'JMP': case 'JZ': case 'CALL':
+                return `${mnemonic} ${data.toString(16).toUpperCase().padStart(2, '0')}`;
+            
+            case 'LOAD': case 'STORE': case 'MOV': case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR':
+                return `${mnemonic} ${destKey}, ${srcKey}`;
+            
+            case 'SET':
+                return `SET AC, ${data.toString(16).toUpperCase().padStart(2, '0')}`;
+
+            case 'INC': case 'DEC': case 'CPL': case 'RR': case 'RL':
+                return `${mnemonic} ${destKey}`;
+
+            case 'IN': case 'OUT': case 'RET':
+                return `${mnemonic} AC`;
+            
+            default:
+                return `${mnemonic} 0x${data.toString(16).toUpperCase().padStart(2, '0')}`;
+        }
+    }
+
+    loadHexBtn.addEventListener('click', () => {
+        const lines = codeInput.value.split('\n');
+        const newRom = [];
+        try {
+            lines.forEach(line => {
+                const cleanLine = line.trim();
+                if (cleanLine === '') return; // Ignora linhas vazias
+
+                const hexValue = parseInt(cleanLine, 16);
+                if (isNaN(hexValue) || hexValue < 0 || hexValue > 0xFFFF) {
+                    throw new Error(`Valor hexadecimal inválido na linha: "${cleanLine}"`);
+                }
+
+                newRom.push({
+                    text: disassemble(hexValue),
+                    hex: hexValue
+                });
+            });
+
+            rom = newRom;
+            codeInput.value = '';
+            registers.PC = 0;
+            updateAllDisplays();
+
+        } catch (error) {
+            alert(error.message);
+        }
+    });
+
+    // === Initial Page Load ===
     initialize();
 });
