@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentValue |= (1 << (7 - index));
             }
         });
-        swHexVal.textContent = currentValue.toString(16).toUpperCase().padStart(2, '0');
+        if (swHexVal) swHexVal.textContent = currentValue.toString(16).toUpperCase().padStart(2, '0');
     }
 
     function updateBitDisplay(containerId, value) {
@@ -93,15 +93,12 @@ document.addEventListener('DOMContentLoaded', () => {
         romTableBody.innerHTML = '';
         rom.forEach((instr, index) => {
             const row = romTableBody.insertRow();
-            if (index === registers.PC) {
-                row.classList.add('current-instruction');
-            }
+            if (index === registers.PC) row.classList.add('current-instruction');
             row.insertCell(0).textContent = index.toString(16).toUpperCase().padStart(2, '0');
             row.insertCell(1).textContent = instr.text;
             row.insertCell(2).textContent = instr.hex.toString(16).toUpperCase().padStart(4, '0');
         });
     }
-
     function renderRAM() {
         ramTableBody.innerHTML = '';
         for (let i = 0; i < ram.length; i++) {
@@ -111,23 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // === Initialization ===
-    function initialize() {
-        registers = { AC: 0, RS: 0, R0: 0, R1: 0, R2: 0, R3: 0, PC: 0, ZF: 0, SP: 0 };
-        for (let i = 0; i < ram.length; i++) ram[i] = i + 0xA0;
-        rom = [];
-        running = false;
-        if (runInterval) clearInterval(runInterval);
-        runBtn.textContent = 'Run';
-        createBitElements();
-        updateAllDisplays();
-        updateSwitchesHexValue();
-    }
-
-    // === Instruction Parser ===
-    function parseInstruction(line) {
-        line = line.replace(/\[|\]/g, ' ');
-        line = line.trim().toUpperCase().split(';')[0];
+    // ================================================================
+    // ASSEMBLER
+    // ================================================================
+    function parseInstruction(line, labelMap) {
+        const originalLine = line.trim();
+        line = originalLine.toUpperCase().split(';')[0].trim();
         if (!line) return null;
         const parts = line.split(/[\s,]+/);
         const mnemonic = parts[0];
@@ -136,23 +122,68 @@ document.addEventListener('DOMContentLoaded', () => {
         let opcodeHex = 0;
         let dataHex = 0;
         try {
+            if (!OPS.hasOwnProperty(mnemonic)) throw new Error(`Mnemônico desconhecido: ${mnemonic}`);
+            opcodeHex = OPS[mnemonic] << 8;
+
             switch (mnemonic) {
-                case 'MOV': opcodeHex = OPS.MOV << 8; dataHex = (REGS[op1] << 4) | REGS[op2]; break;
-                case 'SET': opcodeHex = OPS.SET << 8; const valueToSet = (op2 !== undefined) ? op2 : op1; dataHex = parseInt(valueToSet, 16); break;
-                case 'JMP': case 'JZ': case 'CALL': opcodeHex = OPS[mnemonic] << 8; dataHex = parseInt(op1, 16); break;
-                case 'IN': case 'OUT': case 'RET': opcodeHex = OPS[mnemonic] << 8; break;
-                case 'LOAD': opcodeHex = OPS.LOAD << 8; dataHex = (REGS[op1] << 4) | REGS[op2]; break; // Ex: LOAD R0, AC
-                case 'STORE': opcodeHex = OPS.STORE << 8; dataHex = (REGS[op1] << 4) | REGS[op2]; break; // Ex: STORE AC, R0
-                case 'INC': case 'DEC': case 'CPL': case 'RR': case 'RL': opcodeHex = OPS[mnemonic] << 8; dataHex = (REGS[op1] << 4) | REGS[op1]; break;
-                case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR': opcodeHex = OPS[mnemonic] << 8; dataHex = (REGS[op1] << 4) | REGS[op2]; break;
-                default: throw new Error(`Mnemônico desconhecido: ${mnemonic}`);
+                case 'JMP':
+                case 'JZ':
+                case 'CALL':
+                    if (isNaN(parseInt(op1, 16))) {
+                        if (labelMap[op1] === undefined) {
+                            throw new Error(`Label não encontrado: ${op1}`);
+                        }
+                        dataHex = labelMap[op1]; // Label, usa o endereço do mapa
+                    } else {
+                        dataHex = parseInt(op1, 16); // Número, converte para hex
+                    }
+                    break;
+                // Lógica de parse para as outras instruções (inalterada)
+                case 'MOV': dataHex = (REGS[op1] << 4) | REGS[op2]; break;
+                case 'SET': const valueToSet = (op2 !== undefined) ? op2 : op1; dataHex = parseInt(valueToSet, 16); break;
+                case 'IN': case 'OUT': case 'RET': dataHex = 0; break;
+                case 'LOAD': dataHex = (REGS[op1] << 4); break;
+                case 'STORE': dataHex = REGS[op2]; break;
+                case 'INC': case 'DEC': case 'CPL': case 'RR': case 'RL': dataHex = (REGS[op1] << 4) | REGS[op1]; break;
+                case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR': dataHex = (REGS[op1] << 4) | REGS[op2]; break;
             }
-            if (isNaN(dataHex)) throw new Error(`Operando inválido em: ${line}`);
-            return { text: line, hex: opcodeHex | dataHex };
+            if (isNaN(dataHex)) throw new Error(`Operando inválido: '${op1}' ou '${op2}'`);
+            return { text: originalLine, hex: opcodeHex | dataHex };
         } catch (e) {
-            alert(`Erro ao processar a linha "${line}": ${e.message}`);
-            return null;
+            alert(`Erro na linha "${originalLine}": ${e.message}`);
+            throw e;
         }
+    }
+
+    function assemble(code) {
+        const lines = code.split('\n');
+        const labelMap = {};
+        const cleanCodeLines = [];
+        let addressCounter = 0;
+
+        // 1. Encontra todos os labels e seus endereços
+        lines.forEach(line => {
+            const cleanLine = line.split(';')[0].trim();
+            if (!cleanLine) return;
+
+            if (cleanLine.endsWith(':')) {
+                const labelName = cleanLine.slice(0, -1).toUpperCase();
+                if (labelMap[labelName] !== undefined) throw new Error(`Erro: Label '${labelName}' definido mais de uma vez.`);
+                labelMap[labelName] = addressCounter;
+            } else {
+                cleanCodeLines.push(line);
+                addressCounter++;
+            }
+        });
+
+        // 2. Monta o código de máquina usando o mapa de labels
+        const newRom = [];
+        cleanCodeLines.forEach(line => {
+            const parsed = parseInstruction(line, labelMap);
+            if (parsed) newRom.push(parsed);
+        });
+        
+        return newRom;
     }
 
     // === Core Execution Logic ===
@@ -225,41 +256,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateAllDisplays();
     }
+    
+    function initialize() {
+        registers = { AC: 0, RS: 0, R0: 0, R1: 0, R2: 0, R3: 0, PC: 0, ZF: 0, SP: 0 };
+        for (let i = 0; i < ram.length; i++) ram[i] = i + 0xA0;
+        rom = [];
+        running = false;
+        if (runInterval) clearInterval(runInterval);
+        runBtn.textContent = 'Run';
+        createBitElements();
+        updateAllDisplays();
+        updateSwitchesHexValue();
+    }
 
     // === Event Listeners ===
     stepBtn.addEventListener('click', step);
     resetBtn.addEventListener('click', initialize);
-
     runBtn.addEventListener('click', () => {
-        if (running) {
-            clearInterval(runInterval);
-            running = false;
-            runBtn.textContent = 'Run';
-        } else {
-            running = true;
-            runBtn.textContent = 'Pause';
-            runInterval = setInterval(step, 200);
-        }
+        running = !running;
+        runBtn.textContent = running ? 'Pause' : 'Run';
+        if (running) { runInterval = setInterval(step, 200); } 
+        else { clearInterval(runInterval); }
     });
 
     addToRomBtn.addEventListener('click', () => {
-        const lines = codeInput.value.split('\n');
-        lines.forEach(line => {
-            if (rom.length >= 256) {
-                if (!window.romFullAlerted) {
-                    alert("A memória ROM está cheia (256 posições)!");
-                    window.romFullAlerted = true;
-                }
-                return;
-            }
-            const parsed = parseInstruction(line);
-            if (parsed) {
-                rom.push(parsed);
-            }
-        });
-        window.romFullAlerted = false;
-        codeInput.value = '';
-        renderROM();
+        try {
+            rom = assemble(codeInput.value);
+            codeInput.value = '';
+            registers.PC = 0;
+            updateAllDisplays();
+        } catch (error) {
+            console.error("Falha na montagem do código:", error.message);
+        }
     });
 
     // === Initial Page Load ===
