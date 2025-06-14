@@ -79,12 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (valElement) valElement.textContent = hexValue;
         updateBitDisplay(`${reg}Bits`, registers[reg]);
     }
-    
+
     function updateAllDisplays() {
         REG_NAMES.forEach(reg => {
             if (registers[reg] !== undefined) updateRegisterDisplay(reg, registers[reg]);
         });
-        if(zfValSpan) zfValSpan.textContent = registers.ZF.toString(16).toUpperCase().padStart(2, '0');
+
         renderROM();
         renderRAM();
     }
@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row.insertCell(2).textContent = instr.hex.toString(16).toUpperCase().padStart(4, '0');
         });
     }
+
     function renderRAM() {
         ramTableBody.innerHTML = '';
         for (let i = 0; i < ram.length; i++) {
@@ -113,39 +114,44 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================================================================
     function parseInstruction(line, labelMap) {
         const originalLine = line.trim();
-        line = originalLine.toUpperCase().split(';')[0].trim();
+        line = originalLine.replace(/\[|\]/g, '');
+        line = line.toUpperCase().split(';')[0].trim();
         if (!line) return null;
+
         const parts = line.split(/[\s,]+/);
         const mnemonic = parts[0];
         const op1 = parts[1];
         const op2 = parts[2];
         let opcodeHex = 0;
         let dataHex = 0;
+
         try {
             if (!OPS.hasOwnProperty(mnemonic)) throw new Error(`Mnemônico desconhecido: ${mnemonic}`);
             opcodeHex = OPS[mnemonic] << 8;
 
             switch (mnemonic) {
-                case 'JMP':
-                case 'JZ':
-                case 'CALL':
-                    if (isNaN(parseInt(op1, 16))) {
-                        if (labelMap[op1] === undefined) {
-                            throw new Error(`Label não encontrado: ${op1}`);
-                        }
-                        dataHex = labelMap[op1]; // Label, usa o endereço do mapa
-                    } else {
-                        dataHex = parseInt(op1, 16); // Número, converte para hex
-                    }
+                case 'JMP': case 'JZ': case 'CALL':
+                    if (labelMap[op1] !== undefined) { dataHex = labelMap[op1]; }
+                    else { dataHex = parseInt(op1, 16); }
                     break;
-                // Lógica de parse para as outras instruções (inalterada)
-                case 'MOV': dataHex = (REGS[op1] << 4) | REGS[op2]; break;
-                case 'SET': const valueToSet = (op2 !== undefined) ? op2 : op1; dataHex = parseInt(valueToSet, 16); break;
-                case 'IN': case 'OUT': case 'RET': dataHex = 0; break;
-                case 'LOAD': dataHex = (REGS[op1] << 4); break;
-                case 'STORE': dataHex = REGS[op2]; break;
-                case 'INC': case 'DEC': case 'CPL': case 'RR': case 'RL': dataHex = (REGS[op1] << 4) | REGS[op1]; break;
-                case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR': dataHex = (REGS[op1] << 4) | REGS[op2]; break;
+                
+                case 'LOAD': case 'STORE': case 'MOV':
+                case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR':
+                    if (!REGS.hasOwnProperty(op1) || !REGS.hasOwnProperty(op2)) throw new Error(`Registrador inválido: ${op1} ou ${op2}`);
+                    dataHex = (REGS[op1] << 4) | REGS[op2];
+                    break;
+
+                case 'SET':
+                    const valueToSet = (op2 !== undefined) ? op2 : op1;
+                    dataHex = parseInt(valueToSet, 16);
+                    break;
+                case 'INC': case 'DEC': case 'CPL': case 'RR': case 'RL':
+                    if (!REGS.hasOwnProperty(op1)) throw new Error(`Registrador inválido: ${op1}`);
+                    dataHex = (REGS[op1] << 4) | REGS[op1];
+                    break;
+                case 'IN': case 'OUT': case 'RET':
+                    dataHex = 0;
+                    break;
             }
             if (isNaN(dataHex)) throw new Error(`Operando inválido: '${op1}' ou '${op2}'`);
             return { text: originalLine, hex: opcodeHex | dataHex };
@@ -160,79 +166,61 @@ document.addEventListener('DOMContentLoaded', () => {
         const labelMap = {};
         const cleanCodeLines = [];
         let addressCounter = 0;
-
-        // 1. Encontra todos os labels e seus endereços
         lines.forEach(line => {
             const cleanLine = line.split(';')[0].trim();
             if (!cleanLine) return;
-
             if (cleanLine.endsWith(':')) {
                 const labelName = cleanLine.slice(0, -1).toUpperCase();
-                if (labelMap[labelName] !== undefined) throw new Error(`Erro: Label '${labelName}' definido mais de uma vez.`);
+                if (labelMap[labelName]) throw new Error(`Erro: Label '${labelName}' duplicado.`);
                 labelMap[labelName] = addressCounter;
             } else {
                 cleanCodeLines.push(line);
                 addressCounter++;
             }
         });
-
-        // 2. Monta o código de máquina usando o mapa de labels
         const newRom = [];
         cleanCodeLines.forEach(line => {
             const parsed = parseInstruction(line, labelMap);
             if (parsed) newRom.push(parsed);
         });
-        
         return newRom;
     }
 
     // === Core Execution Logic ===
     function step() {
-        if (rom.length === 0 || registers.PC >= rom.length) {
-            if (running) {
-                runBtn.click();
-            }
-            return;
-        }
-
+        if (rom.length === 0 || registers.PC >= rom.length) { if (running) runBtn.click(); return; }
         const instruction = rom[registers.PC];
-        if (!instruction || typeof instruction.hex !== 'number') {
-            console.error(`Instrução inválida no endereço ${registers.PC}`);
-            if (running) runBtn.click();
-            return;
-        }
+        if (!instruction) { if (running) runBtn.click(); return; }
 
+        const currentPC = registers.PC;
+        let pcUpdated = false;
         const opcode = (instruction.hex >> 8) & 0x1F;
         const data = instruction.hex & 0xFF;
-        let pcUpdated = false;
         let tempResult = 0;
-        
-        const destReg = (data >> 4) & 0xF;
-        const srcReg = data & 0xF;
-        const destKey = Object.keys(REGS).find(k => REGS[k] === destReg);
-        const srcKey = Object.keys(REGS).find(k => REGS[k] === srcReg);
-        
-        const addrRegForMem = Object.keys(REGS).find(k => REGS[k] === srcReg);
+        const destRegIdx = (data >> 4) & 0xF;
+        const srcRegIdx = data & 0xF;
+        const destKey = Object.keys(REGS).find(k => REGS[k] === destRegIdx);
+        const srcKey = Object.keys(REGS).find(k => REGS[k] === srcRegIdx);
 
         switch (opcode) {
-            case OPS.IN:
-                let valorLido = 0;
-                switchBitElements.forEach((bitElement, index) => {
-                    if (bitElement.classList.contains('on')) {
-                        valorLido |= (1 << (7 - index));
-                    }
-                });
-                registers.AC = valorLido;
-                break;
+            case OPS.IN: let v = 0; switchBitElements.forEach((b, i) => { if (b.classList.contains('on')) v |= (1 << (7 - i)); }); registers.AC = v; break;
+            case OPS.OUT: registers.RS = registers.AC; break;
             case OPS.MOV: if (destKey && srcKey) registers[destKey] = registers[srcKey]; break;
             case OPS.SET: registers.AC = data; break;
             case OPS.JMP: registers.PC = data; pcUpdated = true; break;
             case OPS.JZ: if (registers.ZF === 1) { registers.PC = data; pcUpdated = true; } break;
-            case OPS.OUT: registers.RS = registers.AC; break;
-            case OPS.LOAD: if (destKey && addrRegForMem) registers[destKey] = ram[registers[addrRegForMem]]; break;
-            case OPS.STORE: if (destKey && addrRegForMem) { ram[registers[destKey]] = registers[addrRegForMem]; } break;
-            case OPS.CALL: registers.SP = registers.PC + 1; registers.PC = data; pcUpdated = true; break;
+            case OPS.CALL: registers.SP = currentPC + 1; registers.PC = data; pcUpdated = true; break;
             case OPS.RET: registers.PC = registers.SP; pcUpdated = true; break;
+            case OPS.LOAD:
+                if (destKey && srcKey) registers[destKey] = ram[registers[srcKey]];
+                break;
+            case OPS.STORE:
+                if (destKey && srcKey) {
+                    ram[registers[destKey]] = registers[srcKey];
+                    renderRAM();
+                }
+                break;
+
             case OPS.ADD: if (destKey && srcKey) tempResult = registers[destKey] + registers[srcKey]; break;
             case OPS.SUB: if (destKey && srcKey) tempResult = registers[destKey] - registers[srcKey]; break;
             case OPS.INC: if (destKey) tempResult = registers[destKey] + 1; break;
@@ -252,11 +240,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         if (!pcUpdated) {
-            registers.PC++;
+            registers.PC = currentPC + 1;
         }
         updateAllDisplays();
     }
-    
+
     function initialize() {
         registers = { AC: 0, RS: 0, R0: 0, R1: 0, R2: 0, R3: 0, PC: 0, ZF: 0, SP: 0 };
         for (let i = 0; i < ram.length; i++) ram[i] = i + 0xA0;
@@ -275,10 +263,10 @@ document.addEventListener('DOMContentLoaded', () => {
     runBtn.addEventListener('click', () => {
         running = !running;
         runBtn.textContent = running ? 'Pause' : 'Run';
-        if (running) { runInterval = setInterval(step, 200); } 
+        if (running) { runInterval = setInterval(step, 200); }
         else { clearInterval(runInterval); }
     });
-
+    
     addToRomBtn.addEventListener('click', () => {
         try {
             rom = assemble(codeInput.value);
@@ -286,10 +274,9 @@ document.addEventListener('DOMContentLoaded', () => {
             registers.PC = 0;
             updateAllDisplays();
         } catch (error) {
-            console.error("Falha na montagem do código:", error.message);
+            console.error("Falha na montagem:", error.message);
         }
     });
 
-    // === Initial Page Load ===
     initialize();
 });
