@@ -277,8 +277,14 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (mnemonic) {
             case 'JMP': case 'JZ': case 'CALL':
                 return `${mnemonic} ${data.toString(16).toUpperCase().padStart(2, '0')}`;
+
+            case 'LOAD':
+                return `${mnemonic} ${destKey}, [${srcKey}]`;
+
+            case 'STORE':
+                return `${mnemonic} [${destKey}], ${srcKey}`;
             
-            case 'LOAD': case 'STORE': case 'MOV': case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR':
+            case 'MOV': case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR':
                 return `${mnemonic} ${destKey}, ${srcKey}`;
             
             case 'SET':
