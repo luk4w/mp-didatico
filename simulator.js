@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // === Initialization ===
     function initialize() {
         registers = { AC: 0, RS: 0, R0: 0, R1: 0, R2: 0, R3: 0, PC: 0, ZF: 0, SP: 0 };
-        ram.fill(0);
+        for (let i = 0; i < ram.length; i++) ram[i] = i + 0xA0;
         rom = [];
         running = false;
         if (runInterval) clearInterval(runInterval);
