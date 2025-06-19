@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("A ROM está vazia. Monte um código primeiro.");
             return;
         }
-        let tdfString = "TABLE  Adress [7..0] => REG_FF[].d;\n";
+        let tdfString = "TABLE  Address [7..0] => REG_FF[].d;\n";
         rom.forEach((instruction, index) => {
             const addressHex = index.toString(16).toUpperCase().padStart(2, '0');
             const instructionHex = instruction.hex.toString(16).toUpperCase().padStart(4, '0');
