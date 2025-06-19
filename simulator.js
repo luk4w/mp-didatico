@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // === Instruction Set Definitions ===
     const REGS = { R0: 0, R1: 1, R2: 2, R3: 3, AC: 4, PC: 5, IO: 6, SP: 7, ROM: 9, RAM: 10, NONE: 15 };
-    const OPS = { ADD: 0x00, SUB: 0x01, INC: 0x02, DEC: 0x03, CPL: 0x04, AND: 0x05, OR: 0x06, XOR: 0x07, RR: 0x08, RL: 0x09, BYPASS_A: 0x0E, BYPASS_B: 0x0F, CALL: 0x16, RET: 0x17, JZ: 0x18, STORE: 0x19, LOAD: 0x1A, OUT: 0x1B, IN: 0x1C, SET: 0x1D, JMP: 0x1E, MOV: 0x1F };
+    const OPS = { ADD: 0x00, SUB: 0x01, INC: 0x02, DEC: 0x03, CPL: 0x04, AND: 0x05, OR: 0x06, XOR: 0x07, RR: 0x08, RL: 0x09, BYPASS_A: 0x0E, BYPASS_B: 0x0F, CALL: 0x16, RET: 0x15, JZ: 0x18, STORE: 0x19, LOAD: 0x1A, OUT: 0x1B, IN: 0x1C, SET: 0x1D, JMP: 0x1E, MOV: 0x1F };
 
     // === UI Update and Creation Functions ===
     function createBitElements() {
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 case 'INC': case 'DEC': case 'CPL': case 'RR': case 'RL':
                     if (!REGS.hasOwnProperty(op1)) throw new Error(`Registrador inválido: ${op1}`);
-                    dataHex = (REGS[op1] << 4) | REGS[op1];
+                    dataHex = (REGS[op1] << 4);
                     break;
                 case 'IN': case 'OUT': case 'RET':
                     dataHex = 0;
