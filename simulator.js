@@ -331,22 +331,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function exportRomAsVHDL() {
+    function exportRomAsTDF() {
         if (rom.length === 0) {
             alert("A ROM está vazia. Monte um código primeiro.");
             return;
         }
-        let vhdlString = "TABLE  Adress [7..0] => REG_FF[].d;\n";
+        let tdfString = "TABLE  Adress [7..0] => REG_FF[].d;\n";
         rom.forEach((instruction, index) => {
             const addressHex = index.toString(16).toUpperCase().padStart(2, '0');
             const instructionHex = instruction.hex.toString(16).toUpperCase().padStart(4, '0');
-            vhdlString += `\t\tH"${addressHex}"    => H"${instructionHex}";\n`;
+            tdfString += `\t\tH"${addressHex}"    => H"${instructionHex}";\n`;
         });
-        const lines = vhdlString.trim().split('\n');
-        vhdlString = lines.join('\n') + '\n';
-        vhdlString += "\tEND TABLE;\n";
+        const lines = tdfString.trim().split('\n');
+        tdfString = lines.join('\n') + '\n';
+        tdfString += "\tEND TABLE;\n";
 
-        const blob = new Blob([vhdlString], { type: 'text/plain' });
+        const blob = new Blob([tdfString], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     }
 
-    exportRomBtn.addEventListener('click', exportRomAsVHDL);
+    exportRomBtn.addEventListener('click', exportRomAsTDF);
 
 
     // === Initial Page Load ===
