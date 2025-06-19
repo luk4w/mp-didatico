@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadHexBtn = document.getElementById('loadHexBtn');
     const codeInput = document.getElementById('codeInput');
     const romTableBody = document.getElementById('romTableBody');
+    const exportRomBtn = document.getElementById('exportRomBtn');
     const ramTableBody = document.getElementById('ramTableBody');
     const zfValSpan = document.getElementById('ZF');
     const swHexVal = document.getElementById('SWVal');
@@ -80,12 +81,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (valElement) valElement.textContent = hexValue;
         updateBitDisplay(`${reg}Bits`, registers[reg]);
     }
-    
+
     function updateAllDisplays() {
         REG_NAMES.forEach(reg => {
             if (registers[reg] !== undefined) updateRegisterDisplay(reg, registers[reg]);
         });
-        if(zfValSpan) zfValSpan.textContent = registers.ZF.toString(16).toUpperCase().padStart(2, '0');
+        if (zfValSpan) zfValSpan.textContent = registers.ZF.toString(16).toUpperCase().padStart(2, '0');
         renderROM();
         renderRAM();
     }
@@ -128,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
             opcodeHex = OPS[mnemonic] << 8;
             switch (mnemonic) {
                 case 'JMP': case 'JZ': case 'CALL':
-                    if (labelMap[op1] !== undefined) { dataHex = labelMap[op1]; } 
+                    if (labelMap[op1] !== undefined) { dataHex = labelMap[op1]; }
                     else { dataHex = parseInt(op1, 16); }
                     break;
                 case 'LOAD': case 'STORE': case 'MOV': case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR':
@@ -227,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateAllDisplays();
     }
-    
+
     // === Initialization ===
     function initialize() {
         registers = { AC: 0, RS: 0, R0: 0, R1: 0, R2: 0, R3: 0, PC: 0, ZF: 0, SP: 0 };
@@ -247,10 +248,10 @@ document.addEventListener('DOMContentLoaded', () => {
     runBtn.addEventListener('click', () => {
         running = !running;
         runBtn.textContent = running ? 'Pause' : 'Run';
-        if (running) { runInterval = setInterval(step, 200); } 
+        if (running) { runInterval = setInterval(step, 200); }
         else { clearInterval(runInterval); }
     });
-    
+
     assembleBtn.addEventListener('click', () => {
         try {
             rom = assemble(codeInput.value);
@@ -283,10 +284,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             case 'STORE':
                 return `${mnemonic} [${destKey}], ${srcKey}`;
-            
+
             case 'MOV': case 'ADD': case 'SUB': case 'AND': case 'OR': case 'XOR':
                 return `${mnemonic} ${destKey}, ${srcKey}`;
-            
+
             case 'SET':
                 return `SET AC, ${data.toString(16).toUpperCase().padStart(2, '0')}`;
 
@@ -295,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             case 'IN': case 'OUT': case 'RET':
                 return `${mnemonic} AC`;
-            
+
             default:
                 return `${mnemonic} 0x${data.toString(16).toUpperCase().padStart(2, '0')}`;
         }
@@ -329,6 +330,35 @@ document.addEventListener('DOMContentLoaded', () => {
             alert(error.message);
         }
     });
+
+    function exportRomAsVHDL() {
+        if (rom.length === 0) {
+            alert("A ROM está vazia. Monte um código primeiro.");
+            return;
+        }
+        let vhdlString = "TABLE  Adress [7..0] => REG_FF[].d;\n";
+        rom.forEach((instruction, index) => {
+            const addressHex = index.toString(16).toUpperCase().padStart(2, '0');
+            const instructionHex = instruction.hex.toString(16).toUpperCase().padStart(4, '0');
+            vhdlString += `\t\tH"${addressHex}"    => H"${instructionHex}";\n`;
+        });
+        const lines = vhdlString.trim().split('\n');
+        vhdlString = lines.join('\n') + '\n';
+        vhdlString += "\tEND TABLE;\n";
+
+        const blob = new Blob([vhdlString], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'rom_export.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    exportRomBtn.addEventListener('click', exportRomAsVHDL);
+
 
     // === Initial Page Load ===
     initialize();
