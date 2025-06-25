@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     runBtn.addEventListener('click', () => {
         running = !running;
         runBtn.textContent = running ? 'Pause' : 'Run';
-        if (running) { runInterval = setInterval(step, 200); }
+        if (running) { runInterval = setInterval(step, 100); }
         else { clearInterval(runInterval); }
     });
 
