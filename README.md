@@ -1,5 +1,7 @@
 # Simulador - Microprocessador Didático
 
+[![mp-didatico](https://github.com/user-attachments/assets/78743905-8a9d-4470-ac11-83db8adf2fb4)](https://luk4w.github.io/mp-didatico/)
+
 Este projeto é um simulador de um microprocessador didático de 8 bits, projetado para ser uma ferramenta educacional para o aprendizado de conceitos de arquitetura de computadores e programação em Assembly. 
 
 A interface web interativa permite que os usuários escrevam ou carreguem código Assembly, montem ele em código de máquina hexadecimal, e executem o programa passo a passo ou continuamente, observando o estado dos registradores e da memória em tempo real.
@@ -66,7 +68,7 @@ As instruções são codificadas em 16 bits, sendo os 5 bits mais significativos
 
 ## Como Usar
 
-1.  **Abra o arquivo `index.html` em um navegador web.**
+1.  **Acesse o site [Simulador Microprocessador Didático](https://luk4w.github.io/mp-didatico/)** ou baixe o código e rode local.
 2.  **Escreva seu código:** No "Editor de Código", digite seu programa em Assembly. Você pode usar o código de exemplo como ponto de partida.
 
     ```assembly
